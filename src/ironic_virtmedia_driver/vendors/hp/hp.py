@@ -83,10 +83,35 @@ class HP(IronicVirtMediaHW):
         error = message["error"]["@Message.ExtendedInfo"][0]["MessageId"].split(".")
         return error
 
+    def _get_eject_media(self, response):
+        try:
+            r_dict = response.dict
+            ops = r_dict.get("Oem", {}).get(self.typepath.defs.oemhp, {}).get("Actions")
+            if ops:
+                for key in ops.keys():
+                    if "EjectVirtualMedia" in key:
+                        return ops[key]['target']
+        except Exception as err:
+            self.log.error("Failure in finding eject action from response")
+        return None
 
-    def _umount_virtual_cd(self, connection, cd_location):
-        unmount_path = cd_location
-        unmount_body = {"Action": "EjectVirtualMedia", "Target": self.typepath.defs.oempath}
+    def _umount_virtual_cd(self, connection, response):
+        unmount_path = None
+        unmount_body = None
+        if self.typepath.defs.isgen10 or \
+           self.typepath.defs.isgen9:
+            unmount_path = self._get_eject_media(response)
+            unmount_body = {}
+            if not unmount_path:
+                operation = _("Failed to unmount image")
+                error = _("Failed to find unmount path")
+                raise virtmedia_exception.VirtmediaOperationError(
+                    operation=operation, error=error)
+        else:
+            unmount_path = response.dict.get("@odata.id", "")
+            unmount_body = {"Action": "EjectVirtualMedia",
+                            "Target": self.typepath.defs.oempath}
+
         resp = connection.post(path=unmount_path, body=unmount_body)
         if resp.status != 200:
             self.log.error("Unmounting cd failed: %r, cd location: %r", resp, unmount_path)
@@ -109,7 +134,7 @@ class HP(IronicVirtMediaHW):
 
                 if response.status == 200 and "DVD" in response.dict["MediaTypes"]:
                     if response.dict['Inserted']:
-                        self._umount_virtual_cd(connection, vmlink["@odata.id"])
+                        self._umount_virtual_cd(connection, response)
 
                     body = {"Image": image_location}
 
@@ -140,7 +165,7 @@ class HP(IronicVirtMediaHW):
                 response = connection.get(vmlink["@odata.id"])
                 if response.status == 200 and "DVD" in response.dict["MediaTypes"]:
                     if response.dict['Inserted']:
-                        self._umount_virtual_cd(connection, vmlink["@odata.id"])
+                        self._umount_virtual_cd(connection, response)
         connection.logout()
         return True
 
