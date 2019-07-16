@@ -122,7 +122,7 @@ class DELL(IronicVirtMediaHW):
             self.log.debug("attach_virtual_cd")
             connection = self._init_connection(driver_info)
             self._check_supported_idrac_version(connection)
-            image_location = 'http://' + driver_info['provisioning_server'] + ':' + driver_info['provisioning_server_http_port'] + self.remote_share + image_filename
+            image_location = 'http://' + str(driver_info['provisioning_server']) + ':' + str(driver_info['provisioning_server_http_port']) + self.remote_share + image_filename
             self._mount_virtual_cd(connection, image_location)
 
             connection.logout()
