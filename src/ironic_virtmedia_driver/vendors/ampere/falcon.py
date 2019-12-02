@@ -24,7 +24,7 @@ from .nokia_hw import NokiaIronicVirtMediaHW
 
 class FALCON(NokiaIronicVirtMediaHW):
     def __init__(self, log):
-        super(RM18, self).__init__(log)
+        super(FALCON, self).__init__(log)
 
     def get_disk_attachment_status(self, task):
         # Check NFS Service Status
